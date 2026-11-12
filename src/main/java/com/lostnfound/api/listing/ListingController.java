@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/listings")
+@RequestMapping("/api/v1/items/lost")
 public class ListingController {
 
     private final ListingService listingService;
@@ -48,10 +48,19 @@ public class ListingController {
             );
         }
 
+        String subject = jwt.getSubject();
+
+        if (subject == null || subject.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Missing authenticated user ID"
+            );
+        }
+
         UUID supabaseUserId;
 
         try {
-            supabaseUserId = UUID.fromString(jwt.getSubject());
+            supabaseUserId = UUID.fromString(subject);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
@@ -61,6 +70,13 @@ public class ListingController {
 
         Long databaseUserId =
                 userLookup.findDatabaseUserId(supabaseUserId);
+
+        if (databaseUserId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Authenticated user not registered"
+            );
+        }
 
         return listingService.createListing(
                 request,
