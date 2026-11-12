@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -38,10 +39,15 @@ class ListingServiceTest {
         when(listingRepository.save(any(Listing.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        ListingResponse response = listingService.createListing(request, 1L);
+        ListingResponse response = listingService.createListing(
+                request, 1L
+        );
 
         assertEquals(1L, response.userId());
         assertEquals("Lost Backpack", response.title());
+        assertEquals("Black backpack", response.description());
+        assertEquals("Bags", response.category());
+        assertEquals("Library", response.location());
         assertEquals("LOST", response.listingType());
         assertEquals("OPEN", response.status());
 
@@ -57,8 +63,15 @@ class ListingServiceTest {
                 "Library"
         );
 
-        assertThrows(ResponseStatusException.class,
-                () -> listingService.createListing(request, null));
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> listingService.createListing(request, null)
+        );
+
+        assertEquals(
+                HttpStatus.UNAUTHORIZED,
+                exception.getStatusCode()
+        );
 
         verifyNoInteractions(listingRepository);
     }
@@ -73,13 +86,19 @@ class ListingServiceTest {
                 "Library"
         );
 
-        when(listingRepository.findByListingTypeOrderByCreatedAtDesc("LOST"))
+        when(listingRepository
+                .findByListingTypeOrderByCreatedAtDesc("LOST"))
                 .thenReturn(List.of(listing));
 
-        List<ListingResponse> results = listingService.getLostListings();
+        List<ListingResponse> results =
+                listingService.getLostListings();
 
         assertEquals(1, results.size());
         assertEquals("Lost Keys", results.get(0).title());
+        assertEquals("LOST", results.get(0).listingType());
+
+        verify(listingRepository)
+                .findByListingTypeOrderByCreatedAtDesc("LOST");
     }
 
     @Test
@@ -87,7 +106,62 @@ class ListingServiceTest {
         when(listingRepository.findById(99L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class,
-                () -> listingService.getListingById(99L));
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> listingService.getListingById(99L)
+        );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+    }
+
+    @Test
+    void returnsListingById() {
+        Listing listing = new Listing(
+                1L,
+                "Lost Phone",
+                "Black iPhone",
+                "Electronics",
+                "Library"
+        );
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        ListingResponse response =
+                listingService.getListingById(10L);
+
+        assertEquals("Lost Phone", response.title());
+        assertEquals("Black iPhone", response.description());
+        assertEquals("Electronics", response.category());
+        assertEquals("Library", response.location());
+        assertEquals("LOST", response.listingType());
+
+        verify(listingRepository).findById(10L);
+    }
+
+    @Test
+    void rejectsFoundListingWhenRetrievingLostListing() {
+        Listing listing = mock(Listing.class);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        when(listing.getListingType())
+                .thenReturn("FOUND");
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> listingService.getListingById(10L)
+        );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        verify(listingRepository).findById(10L);
     }
 }
