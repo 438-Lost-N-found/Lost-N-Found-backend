@@ -332,7 +332,7 @@ The associated tests are located in:
 Campus Lost & Found is a CST 438 group project.
 
 Frontend repository:
-https://github.com/438-Lost-N-found/Lost-N-Found
+https://github.com/438-Lost-N-found/Lost-N-Found-FrontEnd
 
 Backend repository:
 https://github.com/438-Lost-N-found/Lost-N-Found-backend
