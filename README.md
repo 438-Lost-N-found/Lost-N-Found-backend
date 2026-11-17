@@ -32,7 +32,6 @@ Keep credentials in environment variables or a local secret manager, and never c
 
 Existing Windows environment variables with the same names take precedence over values in `.env`. Remove any stale `SUPABASE_JDBC_URL`, `SUPABASE_DB_USERNAME`, and `SUPABASE_DB_PASSWORD` variables from Windows and open a fresh terminal if the app still appears to use old values.
 
-The database password shared in chat should be rotated in Supabase before use.
 
 Hibernate schema generation and SQL initialization are disabled so application startup does not create, update, or otherwise alter the existing tables.
 
@@ -332,7 +331,7 @@ The associated tests are located in:
 Campus Lost & Found is a CST 438 group project.
 
 Frontend repository:
-https://github.com/438-Lost-N-found/Lost-N-Found
+https://github.com/438-Lost-N-found/Lost-N-Found-FrontEnd
 
 Backend repository:
 https://github.com/438-Lost-N-found/Lost-N-Found-backend
