@@ -9,9 +9,11 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-
+import com.lostnfound.api.listing.AuthenticatedUserLookupTestConfig;
+import org.springframework.context.annotation.Import;
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "SUPABASE_INTEGRATION_TESTS", matches = "true")
+@Import(AuthenticatedUserLookupTestConfig.class)
 class SupabaseDatabaseConnectionTests {
 
 	@Autowired

@@ -1,6 +1,6 @@
 # Lost & Found Backend
 
-Spring Boot backend starter for the Lost & Found application.
+Spring Boot backend for the Lost & Found application.
 
 ## Development
 
@@ -10,19 +10,15 @@ Spring Boot backend starter for the Lost & Found application.
 
 ## Supabase PostgreSQL
 
-The backend uses Spring Data JPA and the PostgreSQL JDBC driver. At startup, set
-these environment variables to connect to the existing Supabase database:
+The backend uses Spring Data JPA and the PostgreSQL JDBC driver. At startup, set these environment variables to connect to the existing Supabase database:
 
 | Variable | Value |
-| --- | --- |
+|---|---|
 | `SUPABASE_JDBC_URL` | Full PostgreSQL JDBC URL, for example `jdbc:postgresql://<host>:5432/postgres?sslmode=require` |
 | `SUPABASE_DB_USERNAME` | Database username from the Supabase connection details |
 | `SUPABASE_DB_PASSWORD` | Database password from the Supabase connection details |
 
-For local development, create a private `.env` file in the repository root by
-copying `.env.example`, then replace the placeholder values with the connection
-details from Supabase. Spring Boot imports this file automatically when the app
-starts:
+For local development, create a private `.env` file in the repository root by copying `.env.example`, then replace the placeholder values with the connection details from Supabase. Spring Boot imports this file automatically when the app starts:
 
 ```powershell
 Copy-Item .env.example .env
@@ -30,21 +26,18 @@ Copy-Item .env.example .env
 .\gradlew.bat bootRun
 ```
 
-Use the database connection details from Supabase; do not use a Supabase API key
-as the database password. Keep credentials in environment variables or a local
-secret manager, and never commit them. `.env` is ignored by Git. Existing Windows
-environment variables with the same names take precedence over values in `.env`;
-remove any stale `SUPABASE_JDBC_URL`, `SUPABASE_DB_USERNAME`, and
-`SUPABASE_DB_PASSWORD` variables from Windows and open a fresh terminal if the
-app still appears to use old values.
+Use the database connection details from Supabase; do not use a Supabase API key as the database password.
+
+Keep credentials in environment variables or a local secret manager, and never commit them. `.env` is ignored by Git.
+
+Existing Windows environment variables with the same names take precedence over values in `.env`. Remove any stale `SUPABASE_JDBC_URL`, `SUPABASE_DB_USERNAME`, and `SUPABASE_DB_PASSWORD` variables from Windows and open a fresh terminal if the app still appears to use old values.
 
 
-Hibernate schema generation and SQL initialization are disabled so application
-startup does not create, update, or otherwise alter the existing tables. The
-normal context test uses an in-memory H2 database and does not require Supabase
-credentials. To check that the backend's Supabase connection can see the
-existing `public.users`, `public.listings`, and `public.claims` tables, run this
-opt-in, read-only integration test from the repository root with `.env` present:
+Hibernate schema generation and SQL initialization are disabled so application startup does not create, update, or otherwise alter the existing tables.
+
+The normal context test uses an in-memory H2 database and does not require Supabase credentials.
+
+To check that the backend's Supabase connection can see the existing `public.users`, `public.listings`, and `public.claims` tables, run this opt-in, read-only integration test from the repository root with `.env` present:
 
 ```powershell
 $env:SUPABASE_INTEGRATION_TESTS = "true"
@@ -52,67 +45,296 @@ $env:SUPABASE_INTEGRATION_TESTS = "true"
 Remove-Item Env:SUPABASE_INTEGRATION_TESTS
 ```
 
-The test uses the Spring Boot datasource configured from `.env` and is skipped
-unless `SUPABASE_INTEGRATION_TESTS` is set to `true`.
+The test uses the Spring Boot datasource configured from `.env` and is skipped unless `SUPABASE_INTEGRATION_TESTS` is set to `true`.
 
-## Docker
+---
 
-Build the image from the repository root:
+## Lost Item Listing API
 
-```powershell
-docker build -t lost-n-found-backend:local .
+The Lost Item Listing API allows students to create and retrieve lost-item listings on campus.
+
+The API uses Spring Boot, Spring Data JPA, and PostgreSQL to manage listing information.
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/v1/items/lost` | Create a new lost-item listing |
+| GET | `/api/v1/items/lost` | Retrieve all lost-item listings |
+| GET | `/api/v1/items/lost/{id}` | Retrieve a lost-item listing by ID |
+
+### 1. Create a Lost Item Listing
+
+**Endpoint:**
+
+`POST /api/v1/items/lost`
+
+Creates a new lost-item listing for the authenticated student.
+
+**Authentication:**
+
+The endpoint is designed to require a valid Supabase JWT.
+
+The backend extracts the Supabase user UUID from the validated JWT and uses it to look up the corresponding numeric user ID in the PostgreSQL `users` table.
+
+The frontend must not provide a `userId` in the request body.
+
+**Example request body:**
+
+```json
+{
+  "title": "Lost Backpack",
+  "description": "Black backpack with laptop inside",
+  "category": "Bags",
+  "location": "Library"
+}
 ```
 
-Run the API on port 8080, passing the local database settings only at runtime:
+**Expected successful response:**
 
-```powershell
-docker run --rm --name lost-n-found-api -p 8080:8080 --env-file .env lost-n-found-backend:local
+`201 Created`
+
+Example response:
+
+```json
+{
+  "id": 10,
+  "userId": 1,
+  "title": "Lost Backpack",
+  "description": "Black backpack with laptop inside",
+  "category": "Bags",
+  "location": "Library",
+  "listingType": "LOST",
+  "status": "OPEN",
+  "createdAt": "2026-11-11T21:00:00Z"
+}
 ```
 
-The `.dockerignore` excludes local environment files, build output, Git and IDE
-files, and `local.properties`; the image does not contain database credentials.
-The container expects `SUPABASE_JDBC_URL`, `SUPABASE_DB_USERNAME`, and
-`SUPABASE_DB_PASSWORD` at runtime. Create `.env` from `.env.example` and use
-current Supabase credentials; do not commit `.env`.
+The response above is illustrative. Actual IDs and timestamps are generated by the database.
 
-To check the container, watch its startup output for `Started ApiApplication`,
-then from a second terminal run:
+**Implementation status:**
 
-```powershell
-Invoke-WebRequest http://localhost:8080/actuator/health
+The POST controller method and listing creation service are implemented.
+
+Full functionality depends on completing Supabase JWT verification and the authenticated-user lookup implementation.
+
+### 2. Retrieve All Lost Item Listings
+
+**Endpoint:**
+
+`GET /api/v1/items/lost`
+
+Retrieves all listings with the type `LOST`.
+
+Listings are ordered by creation date, newest first.
+
+**Expected successful response:**
+
+`200 OK`
+
+Example response:
+
+```json
+[
+  {
+    "id": 10,
+    "userId": 1,
+    "title": "Lost Backpack",
+    "description": "Black backpack with laptop inside",
+    "category": "Bags",
+    "location": "Library",
+    "listingType": "LOST",
+    "status": "OPEN",
+    "createdAt": "2026-11-11T21:00:00Z"
+  }
+]
 ```
 
-Stop the container with Ctrl+C. To run the existing automated tests before
-building the image:
+If no lost-item listings exist, the endpoint returns an empty JSON array.
 
-```powershell
-.\gradlew.bat test
+### 3. Retrieve a Lost Item Listing by ID
+
+**Endpoint:**
+
+`GET /api/v1/items/lost/{id}`
+
+Retrieves an individual lost-item listing using its database ID.
+
+**Example request:**
+
+`GET /api/v1/items/lost/10`
+
+**Expected successful response:**
+
+`200 OK`
+
+Returns the requested listing as a JSON object.
+
+If the listing does not exist or its type is not `LOST`, the API returns:
+
+`404 Not Found`
+
+---
+
+## Request Validation
+
+The API uses Jakarta Bean Validation to validate incoming listing requests.
+
+| Field | Validation |
+|---|---|
+| `title` | Required, not blank, maximum 150 characters |
+| `description` | Required, not blank |
+| `category` | Optional, maximum 50 characters |
+| `location` | Optional, maximum 255 characters |
+
+Invalid request data should result in:
+
+`400 Bad Request`
+
+Validation is implemented using `@Valid`, `@NotBlank`, and `@Size`.
+
+---
+
+## Error Handling
+
+The listing API uses standard HTTP status codes.
+
+| HTTP Status | Description |
+|---|---|
+| `200 OK` | Listing retrieved successfully |
+| `201 Created` | Listing created successfully |
+| `400 Bad Request` | Invalid listing request |
+| `401 Unauthorized` | Missing or invalid authentication |
+| `404 Not Found` | Requested lost-item listing does not exist |
+
+Authentication-related responses describe the intended behavior pending full Spring Security integration.
+
+---
+
+## Authentication Integration
+
+The application is being designed to use Supabase JWT authentication.
+
+The planned authentication flow is:
+
+1. A student signs in through Supabase authentication.
+2. The frontend sends the JWT in the Authorization header.
+3. Spring Security validates the JWT.
+4. The backend extracts the Supabase UUID from the JWT subject.
+5. The authenticated-user lookup resolves the UUID to the numeric `users.id`.
+6. The listing service creates the listing using that database user ID.
+
+Example Authorization header:
+
+```http
+Authorization: Bearer <SUPABASE_JWT>
 ```
 
-### Local API and PostgreSQL with Compose
+The listing API currently defines an `AuthenticatedUserLookup` interface for this integration.
 
-Compose starts a separate local PostgreSQL database and initializes it from
-`database/migrations/001_initial_schema.sql` the first time its data volume is
-created. It does not connect to or change the Supabase database. Add local-only
-`POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` values to the root `.env`
-file (the names and placeholders are in `.env.example`). Do not reuse the
-Supabase password for the local database. Compose maps these local settings to
-the API datasource variables; the Supabase entries in `.env` are not passed to
-the Compose API container.
+The real implementation of the lookup and Spring Security JWT validation are still pending.
 
-From the repository root, start both services:
+The existing `users` table must also support a reliable mapping between the Supabase UUID and the numeric database user ID.
 
-```powershell
-docker compose config --quiet
-docker compose up --build
-```
+---
 
-In another terminal, verify the API health endpoint:
+## Testing
+
+The project uses JUnit 5 and Mockito for automated unit testing.
+
+Run all tests:
 
 ```powershell
-Invoke-WebRequest http://localhost:8080/actuator/health
+.\gradlew.bat clean test
 ```
 
-Stop the services with Ctrl+C, or run `docker compose down` in another terminal.
-The named PostgreSQL volume is kept so local data remains available on the next
-start.
+View the generated HTML test report:
+
+```powershell
+start build/reports/tests/test/index.html
+```
+
+### Listing Service Tests
+
+`ListingServiceTest.java` verifies:
+
+- Creating a lost-item listing for an authenticated user
+- Rejecting listing creation without an authenticated user
+- Retrieving lost-item listings
+- Returning 404 when a listing does not exist
+- Retrieving an individual lost-item listing
+- Rejecting FOUND listings through the lost-item retrieval service
+
+### Listing Controller Tests
+
+`ListingControllerTest.java` verifies:
+
+- Retrieving existing lost-item listings
+- Returning an empty list when no listings exist
+- Retrieving a listing by ID
+- Handling missing listings
+- Creating a listing with an authenticated user identity
+- Rejecting listing creation without authentication
+- Rejecting invalid Supabase user UUIDs
+
+### Test Results
+
+The latest Gradle test run completed successfully.
+
+The project includes:
+
+- 6 listing service unit tests
+- 7 listing controller unit tests
+- Spring Boot application-context testing
+- An optional Supabase database connection test
+
+The controller unit tests call Java methods directly. They do not yet verify actual HTTP routing, Spring Security authorization, or request validation through HTTP.
+
+The application-context tests use a test-only mock of `AuthenticatedUserLookup` until the real implementation is available.
+
+### Remaining Integration Testing
+
+Before the listing API is considered complete, the team must:
+
+- Integrate the real Supabase JWT validation and user lookup.
+- Verify authenticated POST requests.
+- Verify invalid HTTP requests return appropriate status codes.
+- Test listing creation and retrieval against PostgreSQL.
+- Confirm the API works with the frontend application.
+
+---
+
+## Implementation Structure
+
+The listing API implementation is located in:
+
+`src/main/java/com/lostnfound/api/listing/`
+
+| File | Responsibility |
+|---|---|
+| `Listing.java` | JPA entity mapped to the listings table |
+| `ListingRepository.java` | Database access using Spring Data JPA |
+| `CreateListingRequest.java` | Request DTO and validation |
+| `ListingResponse.java` | API response DTO |
+| `ListingService.java` | Business logic for creating and retrieving listings |
+| `ListingController.java` | REST API endpoints |
+| `AuthenticatedUserLookup.java` | Contract for resolving authenticated users |
+
+The associated tests are located in:
+
+`src/test/java/com/lostnfound/api/listing/`
+
+---
+
+## Related Project
+
+Campus Lost & Found is a CST 438 group project.
+
+Frontend repository:
+https://github.com/438-Lost-N-found/Lost-N-Found-FrontEnd
+
+Backend repository:
+https://github.com/438-Lost-N-found/Lost-N-Found-backend
+
+Lost Item Listing API issue:
+https://github.com/438-Lost-N-found/Lost-N-Found-backend/issues/4
