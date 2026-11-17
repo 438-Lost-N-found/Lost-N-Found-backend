@@ -38,7 +38,6 @@ remove any stale `SUPABASE_JDBC_URL`, `SUPABASE_DB_USERNAME`, and
 `SUPABASE_DB_PASSWORD` variables from Windows and open a fresh terminal if the
 app still appears to use old values.
 
-The database password shared in chat should be rotated in Supabase before use.
 
 Hibernate schema generation and SQL initialization are disabled so application
 startup does not create, update, or otherwise alter the existing tables. The
@@ -55,3 +54,65 @@ Remove-Item Env:SUPABASE_INTEGRATION_TESTS
 
 The test uses the Spring Boot datasource configured from `.env` and is skipped
 unless `SUPABASE_INTEGRATION_TESTS` is set to `true`.
+
+## Docker
+
+Build the image from the repository root:
+
+```powershell
+docker build -t lost-n-found-backend:local .
+```
+
+Run the API on port 8080, passing the local database settings only at runtime:
+
+```powershell
+docker run --rm --name lost-n-found-api -p 8080:8080 --env-file .env lost-n-found-backend:local
+```
+
+The `.dockerignore` excludes local environment files, build output, Git and IDE
+files, and `local.properties`; the image does not contain database credentials.
+The container expects `SUPABASE_JDBC_URL`, `SUPABASE_DB_USERNAME`, and
+`SUPABASE_DB_PASSWORD` at runtime. Create `.env` from `.env.example` and use
+current Supabase credentials; do not commit `.env`.
+
+To check the container, watch its startup output for `Started ApiApplication`,
+then from a second terminal run:
+
+```powershell
+Invoke-WebRequest http://localhost:8080/actuator/health
+```
+
+Stop the container with Ctrl+C. To run the existing automated tests before
+building the image:
+
+```powershell
+.\gradlew.bat test
+```
+
+### Local API and PostgreSQL with Compose
+
+Compose starts a separate local PostgreSQL database and initializes it from
+`database/migrations/001_initial_schema.sql` the first time its data volume is
+created. It does not connect to or change the Supabase database. Add local-only
+`POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` values to the root `.env`
+file (the names and placeholders are in `.env.example`). Do not reuse the
+Supabase password for the local database. Compose maps these local settings to
+the API datasource variables; the Supabase entries in `.env` are not passed to
+the Compose API container.
+
+From the repository root, start both services:
+
+```powershell
+docker compose config --quiet
+docker compose up --build
+```
+
+In another terminal, verify the API health endpoint:
+
+```powershell
+Invoke-WebRequest http://localhost:8080/actuator/health
+```
+
+Stop the services with Ctrl+C, or run `docker compose down` in another terminal.
+The named PostgreSQL volume is kept so local data remains available on the next
+start.

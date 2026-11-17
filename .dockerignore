@@ -1,0 +1,30 @@
+# Build outputs and Gradle state
+build/
+**/build/
+.gradle/
+**/.gradle/
+bin/
+out/
+target/
+
+# Git and IDE files
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# Local secrets and machine-specific files
+.env
+.env.*
+local.properties
+**/local.properties
+
+# OS metadata
+.DS_Store
+Thumbs.db
