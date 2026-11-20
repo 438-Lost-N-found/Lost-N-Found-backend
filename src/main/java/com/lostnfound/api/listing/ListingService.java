@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ListingService {
@@ -61,5 +62,32 @@ public class ListingService {
         }
 
         return ListingResponse.fromEntity(listing);
+    }
+    public List<ListingResponse> searchListings(String keyword, String type) {
+
+        String normalizedKeyword =
+                keyword == null || keyword.isBlank()
+                        ? null
+                        : keyword.trim();
+
+        String normalizedType =
+                type == null || type.isBlank()
+                        ? null
+                        : type.trim().toUpperCase(Locale.ROOT);
+
+        if (normalizedType != null
+                && !normalizedType.equals("LOST")
+                && !normalizedType.equals("FOUND")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Type must be LOST or FOUND"
+            );
+        }
+
+        return listingRepository
+                .searchListings(normalizedKeyword, normalizedType)
+                .stream()
+                .map(ListingResponse::fromEntity)
+                .toList();
     }
 }
